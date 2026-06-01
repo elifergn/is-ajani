@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: is_ajani_backend
+    environment:
+      PORT: 3001
+      JWT_SECRET: supersecret_is_ajani_key
+      DATABASE_FILE: /app/data/is_ajani.db
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_PASS: ${GMAIL_PASS:-}
+    ports:
+      - "3001:3001"
+    volumes:
+      - sqlite_data:/app/data
+
+  worker:
+    build: ./worker
+    container_name: is_ajani_worker
+    environment:
+      DATABASE_FILE: /app/data/is_ajani.db
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    volumes:
+      - sqlite_data:/app/data
+    depends_on:
+      - backend
+
+  frontend:
+    build: ./frontend
+    container_name: is_ajani_frontend
+    environment:
+      - VITE_API_URL=http://localhost:3001/api
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+    depends_on:
+      - backend
+
+volumes:
+  sqlite_data:
