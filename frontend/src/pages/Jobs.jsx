@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const Jobs = () => {
   const [searchParams] = useSearchParams();
   const categoryParam = searchParams.get('category') || '';
-  
+
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -92,16 +92,16 @@ const Jobs = () => {
                 </div>
                 <span className="badge">{job.category}</span>
               </div>
-              <div style={{ 
-                color: 'var(--text-muted)', 
-                marginBottom: '1.5rem', 
-                fontSize: '0.95rem', 
-                lineHeight: '1.6', 
-                whiteSpace: 'pre-wrap', 
-                backgroundColor: 'rgba(56, 189, 248, 0.03)', 
-                padding: '1.2rem', 
-                borderRadius: '8px', 
-                borderLeft: '3px solid var(--border-color)' 
+              <div style={{
+                color: 'var(--text-muted)',
+                marginBottom: '1.5rem',
+                fontSize: '0.95rem',
+                lineHeight: '1.6',
+                whiteSpace: 'pre-wrap',
+                backgroundColor: 'rgba(56, 189, 248, 0.03)',
+                padding: '1.2rem',
+                borderRadius: '8px',
+                borderLeft: '3px solid var(--border-color)'
               }}>
                 {job.description}
               </div>
@@ -109,8 +109,8 @@ const Jobs = () => {
                 <span className="flex items-center gap-1" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                   <MapPin size={16} /> Remote / İstanbul
                 </span>
-                <button 
-                  className="btn btn-outline" 
+                <button
+                  className="btn btn-outline"
                   style={{ padding: '0.6rem 1.5rem' }}
                   onClick={() => handleApply(job.id)}
                 >

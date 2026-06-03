@@ -7,6 +7,40 @@ const { sendApplicationEmail } = require('./mailer');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret_is_ajani_key';
 
+// Multer & Dosya Yükleme Yapılandırması
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+
+const uploadDir = path.join(__dirname, '..', 'uploads', 'cv');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype === 'application/pdf') {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF files are allowed!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage, 
+  fileFilter: fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
 // Register
 router.post('/auth/register', async (req, res) => {
   try {
@@ -179,6 +213,82 @@ router.get('/applications', authenticate, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get user profile info
+router.get('/user/profile', authenticate, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT id, fullname, email, username, telegram_chat_id, phone, city, university, department, skills, cv_path FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Custom middleware to handle Multer upload errors
+const handleCvUpload = (req, res, next) => {
+  upload.single('cv')(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: `CV yükleme hatası: ${err.message}` });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+};
+
+// Update user profile info
+router.put('/user/profile', authenticate, handleCvUpload, async (req, res) => {
+  try {
+    const { phone, city, university, department, skills } = req.body;
+    let cv_path = null;
+    if (req.file) {
+      cv_path = `/uploads/cv/${req.file.filename}`;
+    }
+
+    let updateQuery;
+    let params;
+
+    if (cv_path) {
+      updateQuery = `
+        UPDATE users 
+        SET phone = $1, city = $2, university = $3, department = $4, skills = $5, cv_path = $6
+        WHERE id = $7
+      `;
+      params = [phone, city, university, department, skills, cv_path, req.user.id];
+    } else {
+      updateQuery = `
+        UPDATE users 
+        SET phone = $1, city = $2, university = $3, department = $4, skills = $5
+        WHERE id = $6
+      `;
+      params = [phone, city, university, department, skills, req.user.id];
+    }
+
+    await db.query(updateQuery, params);
+
+    // Fetch and return updated profile
+    const updatedUserRes = await db.query(
+      'SELECT id, fullname, email, username, telegram_chat_id, phone, city, university, department, skills, cv_path FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    
+    res.json({ 
+      message: 'Profil başarıyla güncellendi.', 
+      user: updatedUserRes.rows[0] 
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Sunucu hatası oluştu.' });
   }
 });
 
